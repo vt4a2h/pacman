@@ -1,1 +1,1 @@
-ocean pacman
+game pacman
