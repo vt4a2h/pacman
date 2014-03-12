@@ -25,7 +25,7 @@ public:
 
 private:
     Ui::MainWindow *ui;
-    QGraphicsScene *m_Scene;
+    QGraphicsScene   *m_Scene;
     game::GamePacman *m_Game;
 };
 

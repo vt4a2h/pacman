@@ -14,8 +14,10 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     ui->graphicsView->setScene(m_Scene);
-    m_Game = new game::GamePacman(ui->graphicsView, m_Scene, this);
     ui->graphicsView->installEventFilter(this);
+
+    m_Game = new game::GamePacman(ui->graphicsView, m_Scene, this);
+
     ui->lbl_Result->hide();
 
     connect(m_Game, &game::GamePacman::scoreChanged, [this](int score){
@@ -27,8 +29,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(m_Game, &game::GamePacman::gameEnded, [this](){
         ui->lbl_Result->show();
-        if (m_Game->pointCount() == 0) {
-            ui->lbl_Result->setText(tr("Победа!"));
+        if (m_Game->pointsCount() == 0) {
+            ui->lbl_Result->setText(tr("Победа!\nНажмите \"R\" для начала новой игры."));
         } else {
             ui->lbl_Result->setText(tr("Вы проиграли... \nНажмите \"R\" для начала новой игры."));
         }

@@ -20,10 +20,12 @@ namespace game {
         , m_Score(0)
     {
         m_GhostsNames << "blinky" << "pinky" << "inky" << "clyde";
+
         prepareToStart();
         makeDecisionPoints();
+
         connect(m_PacmanTimer, &QTimer::timeout, [this](){ pacmanStep(); });
-        connect(m_GhostTimer, &QTimer::timeout, [this](){ oneGhostsStep(); });
+        connect(m_GhostTimer, &QTimer::timeout, [this](){ ghostsStep(); });
     }
 
     void GamePacman::prepareToStart()
@@ -58,7 +60,7 @@ namespace game {
     }
 
     void GamePacman::start()
-    {
+    {       
         m_PacmanTimer->start(PACMAN_UPTIME);
         m_GhostTimer->start(GHOSTS_UPTIME);
     }
@@ -75,7 +77,7 @@ namespace game {
         return m_Score;
     }
 
-    int GamePacman::pointCount() const
+    int GamePacman::pointsCount() const
     {
         return m_PointsCount;
     }
@@ -103,7 +105,7 @@ namespace game {
     {
         m_PacmanDirection = Left;
         m_Pacman->setRotation(270);
-        m_Pacman->setTransform(QTransform().translate(0,CELL_HEIGHT - m_Grid->margin()));
+        m_Pacman->setTransform(QTransform().translate(0, CELL_HEIGHT - m_Grid->margin()));
     }
 
     void GamePacman::pacmanToRight()
@@ -113,19 +115,13 @@ namespace game {
         m_Pacman->setTransform(QTransform().translate(CELL_WIDTH - m_Grid->margin(),0));
     }
 
-    void GamePacman::oneGhostsStep()
+    void GamePacman::ghostsStep()
     {
         ghostStep(m_Ghosts["blinky"]);
         ghostStep(m_Ghosts["pinky"]);
 
-        if (m_Score >= 30) ghostStep(m_Ghosts["inky"]);
-        if (m_Score >= 59) ghostStep(m_Ghosts["clyde"]);
-
-        if (m_Ghosts["blinky"]->collidesWithItem(m_Pacman) ||
-            m_Ghosts["pinky"]->collidesWithItem(m_Pacman)  ||
-            m_Ghosts["inky"]->collidesWithItem(m_Pacman)   ||
-            m_Ghosts["clyde"]->collidesWithItem(m_Pacman)  ||
-            !m_PacmanTimer->isActive()) stop();
+        if (m_Score >= POINTS_COUNT_FOR_INKY_FIRST_STEP) ghostStep(m_Ghosts["inky"]);
+        if (m_Score >= POINTS_COUNT_FOR_CLYDE_FIRST_STEP) ghostStep(m_Ghosts["clyde"]);
     }
 
     void GamePacman::generatePoints()
@@ -133,7 +129,6 @@ namespace game {
         m_PointsCount = 0;
         m_Score = 0;
 
-        // yes, I really lazy for normal grid( mb in future
         // top rect
         QPointF p(m_Grid->boundingRect().bottomLeft());
         p.ry() -= 2 * CELL_HEIGHT;
@@ -173,19 +168,19 @@ namespace game {
         QPointF p(m_Grid->boundingRect().topLeft());
         p.ry() += m_Grid->margin() + 1 + 7 * CELL_HEIGHT;
         p.rx() += m_Grid->margin() + 1 + 10 * CELL_WIDTH;
+
         m_Ghosts["blinky"]->setPos(p);
         m_Scene->addItem(m_Ghosts["blinky"]);
-        m_Ghosts["blinky"]->setData(LastPos, movePoint(m_Ghosts["blinky"], Bottom));
+        m_Ghosts["blinky"]->setData(LastPos, makeMovePoint(m_Ghosts["blinky"], Bottom));
 
-        p = m_Ghosts["blinky"]->pos();
         p.ry() += 2 * CELL_HEIGHT;
         m_Ghosts["pinky"]->setPos(p);
         m_Scene->addItem(m_Ghosts["pinky"]);
 
-        m_Ghosts["inky"]->setPos(movePoint(m_Ghosts["pinky"], Left));
+        m_Ghosts["inky"]->setPos(makeMovePoint(m_Ghosts["pinky"], Left));
         m_Scene->addItem(m_Ghosts["inky"]);
 
-        m_Ghosts["clyde"]->setPos(movePoint(m_Ghosts["pinky"], Right));
+        m_Ghosts["clyde"]->setPos(makeMovePoint(m_Ghosts["pinky"], Right));
         m_Scene->addItem(m_Ghosts["clyde"]);
     }
 
@@ -208,20 +203,20 @@ namespace game {
 
     void GamePacman::pacmanStep()
     {
-        if (m_PointsCount == 0) stop();
+        if (m_PointsCount == 0) stop(); // NOTE: mb add check collides with ghost here and start pacman timer second
         QPointF p(m_Pacman->pos());
         switch (m_PacmanDirection) {
         case Top:
-            p = movePoint(m_Pacman, Top);
+            p = makeMovePoint(m_Pacman, Top);
             break;
         case Bottom:
-            p = movePoint(m_Pacman, Bottom);
+            p = makeMovePoint(m_Pacman, Bottom);
             break;
         case Left:
-            p = movePoint(m_Pacman, Left);
+            p = makeMovePoint(m_Pacman, Left);
             break;
         case Right:
-            p = movePoint(m_Pacman, Right);
+            p = makeMovePoint(m_Pacman, Right);
             break;
         default:
             break;
@@ -251,15 +246,10 @@ namespace game {
 
     void GamePacman::ghostStep(QGraphicsPixmapItem *ghost)
     {
+        if (ghost->collidesWithItem(m_Pacman) || !m_PacmanTimer->isActive()) return stop();
         auto index = m_DecisionPoints.indexOf(ghost->pos());
-        QPointF p;
 
-        if (index != -1) {
-            // near to the Strategy. not refactor
-            p = makeDecision(ghost);
-        } else {
-            p = findPossibleStep(ghost);
-        }
+        QPointF p = (index != -1) ? makeDecision(ghost) : findPossibleStep(ghost);
 
         ghost->setData(LastPos, ghost->pos());
         ghost->setPos(p);
@@ -270,10 +260,8 @@ namespace game {
         QList<QPointF> result;
         QPointF p;
         for(int i = Left; i <= Bottom; ++i) {
-             p = movePoint(ghost, static_cast<Direction>(i));
-             if (m_Scene->itemAt(p.x() /*+ m_Grid->margin()*/,
-                                 p.y() /*+ m_Grid->margin()*/,
-                                 m_View->transform())->data(0).toString() != "border" &&
+             p = makeMovePoint(ghost, static_cast<Direction>(i));
+             if (m_Scene->itemAt(p.x(), p.y(),  m_View->transform())->data(0).toString() != "border" &&
                  p != ghost->data(LastPos).toPointF()) {
                  fixOutOfGameField(p);
                  result << p;
@@ -339,6 +327,7 @@ namespace game {
 
         for (auto point : posP)
             if (QLineF(resultGhostPos, p).length() > QLineF(resultGhostPos, point).length()) p = point;
+
         return p;
     }
 
@@ -346,12 +335,13 @@ namespace game {
     {
         QPointF p;
         for(int i = Left; i <= Bottom; ++i) {
-             p = movePoint(ghost, static_cast<Direction>(i));
+             p = makeMovePoint(ghost, static_cast<Direction>(i));
              if (m_Scene->itemAt(p.x() + m_Grid->margin(),
                                  p.y() + m_Grid->margin(),
                                  m_View->transform())->data(0).toString() != "border" &&
                  p != ghost->data(LastPos).toPointF()) {
                  fixOutOfGameField(p);
+
                  return p;
              }
         }
@@ -365,6 +355,7 @@ namespace game {
         //       QPointF p = m_Grid->m_Grid->boundingRect().topLeft();
         //       p.rx() += N * CELL_WIDTH;
         //       p.ry() += M * CELL_HEIGHT;
+        //       ...
         m_DecisionPoints << QPointF(-109,-189) << QPointF(-169,-149) << QPointF(-109,-149)
                          << QPointF(-69,-149)  << QPointF(-29,-149)  << QPointF(11,-149)
                          << QPointF(51,-149)   << QPointF(91,-149)   << QPointF(151,-149)
@@ -375,11 +366,11 @@ namespace game {
                          << QPointF(91,51)     << QPointF(91,91)     << QPointF(51,91)
                          << QPointF(-69,91)    << QPointF(-109,91)   << QPointF(-149,131)
                          << QPointF(131,131)   << QPointF(11,171)    << QPointF(-29,171)
-                         << QPointF(-29,91) << QPointF(31,91)
-                         << QPointF(-29,-69) << QPointF(11,-69) << QPointF(-9,-69) << QPointF(-9,-29);
+                         << QPointF(-29,91)    << QPointF(31,91)     << QPointF(-29,-69)
+                         << QPointF(11,-69)    << QPointF(-9,-69)    << QPointF(-9,-29);
     }
 
-    QPointF GamePacman::movePoint(QGraphicsPixmapItem *item, GamePacman::Direction direction)
+    QPointF GamePacman::makeMovePoint(QGraphicsPixmapItem *item, GamePacman::Direction direction)
     {
         QPointF p(item->pos());
 
