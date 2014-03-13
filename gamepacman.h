@@ -1,5 +1,4 @@
-#ifndef GAMEPACMAN_H
-#define GAMEPACMAN_H
+#pragma once
 
 #include <QHash>
 #include <QStringList>
@@ -82,5 +81,3 @@ namespace game {
     };
 
 }
-
-#endif // GAMEPACMAN_H

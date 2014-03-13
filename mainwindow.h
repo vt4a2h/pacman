@@ -1,5 +1,4 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include <QMainWindow>
 
@@ -28,5 +27,3 @@ private:
     QGraphicsScene   *m_Scene;
     game::GamePacman *m_Game;
 };
-
-#endif // MAINWINDOW_H

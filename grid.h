@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_ITEM_GRID_H
-#define GRAPHICS_ITEM_GRID_H
+#pragma once
 
 #include <QGraphicsObject>
 #include <QPainter>
@@ -40,5 +39,3 @@ namespace graphics_item {
     };
 
 } // namespace graphics_item
-
-#endif // GRAPHICS_ITEM_GRID_H
